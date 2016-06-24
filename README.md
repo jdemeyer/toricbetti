@@ -15,7 +15,8 @@ Download the sources and then run
 ## Usage
 
 Start Sage the usual way and then execute the following commands
-to compute the graded Betti table of 5 Sigma in just a few seconds:
+to compute the graded Betti table of 5 Sigma in characteristic 40009
+in just a few seconds:
 
     sage: from betti.all import *
     sage: P = polygon_normalized([(0,0), (5,0), (0,5)])
