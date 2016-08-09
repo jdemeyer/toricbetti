@@ -1,4 +1,4 @@
-from sage.all import (ZZ, GL, vector, point, Polyhedron,
+from sage.all import (ZZ, GL, gcd, vector, point, Polyhedron,
     MixedIntegerLinearProgram)
 from .fundom import fundamental_domain
 
@@ -224,3 +224,66 @@ def point_lists(Delta, remove_points=[]):
             int_pts2.remove(pt + z)
 
     return all_pts, int_pts, int_pts2
+
+
+def polygon_expand(Delta, len=1):
+    ieqs = []
+    for ineq in Delta.inequalities_list():
+        c = ineq[0]
+        ineq = ineq[1:]
+        assert c in ZZ
+        assert gcd(ineq) == 1
+        ieqs.append([c + len] + ineq)
+    return Polyhedron(ieqs=ieqs)
+
+
+def is_interior(Delta):
+    Gamma = polygon_expand(Delta)
+    return all(c in ZZ for v in Gamma.vertices_list() for c in v)
+
+
+def normal_vertices(Delta):
+    vertices = []
+    for ineq in Delta.inequalities_list():
+        c = ineq[0]
+        ineq = ineq[1:]
+        assert gcd(ineq) == 1
+        vertices.append(vector(ZZ, ineq))
+    return vertices
+
+
+def is_weak_fano(Delta):
+    """
+    Check whether Delta is a (weak) Fano polytope.
+
+    OUTPUT:
+
+    - 2 if Fano
+
+    - 1 if weak Fano
+
+    - 0 if not weak Fano
+    """
+    N = normal_vertices(Delta)
+    Normal = Polyhedron(vertices=N)
+    if len(interior_points(Normal)) == 1:
+        # Weak Fano => Fano iff all elements of N
+        # are vertices
+        if Normal.n_vertices() == len(N):
+            return 2
+        else:
+            return 1
+    return 0
+
+
+def is_smooth(Delta):
+    for v in Delta.vertices():
+        # There should be exactly two edges incident with v
+        h1, h2 = v.incident()
+        _, a, b = h1.vector()
+        _, c, d = h2.vector()
+        det = a * d - b * c
+        if abs(det) != 1:
+            assert det != 0
+            return False
+    return True
