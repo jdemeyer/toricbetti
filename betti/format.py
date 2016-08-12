@@ -1,4 +1,57 @@
 from sage.all import ZZ, Matrix
+from .genf import genf_diagonal_difference
+
+
+def format_table(typ, *args, **kwds):
+    if typ == "b":
+        return format_table_b(*args, **kwds)
+    elif typ == "c":
+        return format_table_c(*args, **kwds)
+    else:
+        raise ValueError("unknown typ {!r}".format(typ))
+
+
+def format_table_b(table, l, dual=False, **kwds):
+    # Simple table without removed points
+    table0 = table.__class__(table.polygon, ZZ, remove_points=[])
+    N = table0.N
+
+    # Definition
+    A = table0.computer(l, 1)
+    Asupp, Ad, Ac = A.bidegree_tables(short=True, flip=dual)
+
+    # Reduce support via dual
+    B = table0.dual_computer(N - 3 - l, 2)
+    Bsupp, Bd, Bc = B.bidegree_tables(short=True, flip=not dual)
+    Mzero = Bsupp.parent()(0)
+
+    # Intersect Asupp and Bsupp
+    nr = min(Asupp.nrows(), Bsupp.nrows())
+    nc = min(Asupp.ncols(), Bsupp.ncols())
+    Supp = Matrix(ZZ, nr, nc)
+    for i in range(nr):
+        for j in range(nc):
+            Supp[i,j] = Asupp[i,j] and Bsupp[i,j]
+
+    # Compute b_l using the corresponding c_cl and the formula for the
+    # diagonal differences
+    lc = N - 1 - l
+    C = table.c_computer(lc)
+    if N - 1 - lc > table.hering_schenck_bound:
+        Msupp, Md, Mc, Mker, Mim = C.bidegree_tables(flip=not dual)
+        Cohom = Mker
+    else:
+        Msupp, Md, Mc = C.bidegree_tables(short=True, flip=not dual)
+        Cohom = Mzero
+
+    # Apply diagonal differences
+    dd = genf_diagonal_difference(table.polygon, l)
+    for i in range(nr):
+        for j in range(nc):
+            Cohom[i,j] -= dd[i,j]
+
+    return format_matrices(Cohom, Md, Supp, **kwds)
+
 
 def format_table_c(table, l, dual=False, **kwds):
     # Simple table without removed points
@@ -7,11 +60,12 @@ def format_table_c(table, l, dual=False, **kwds):
 
     # Definition
     A = table0.computer(N - 2 - l, 2)
-    Asupp, Ad, Ac = A.bidegree_tables(short=True, dual=dual)
+    Asupp, Ad, Ac = A.bidegree_tables(short=True, flip=dual)
 
+    # Reduce support via dual
     B = table0.dual_computer(l - 1, 1)
-    Bsupp, Bd, Bc = B.bidegree_tables(short=True, dual=not dual)
-    Mzero = Bsupp.parent().zero()
+    Bsupp, Bd, Bc = B.bidegree_tables(short=True, flip=not dual)
+    Mzero = Bsupp.parent()(0)
 
     # Intersect Asupp and Bsupp
     nr = min(Asupp.nrows(), Bsupp.nrows())
@@ -22,23 +76,33 @@ def format_table_c(table, l, dual=False, **kwds):
             Supp[i,j] = Asupp[i,j] and Bsupp[i,j]
 
     C = table.c_computer(l)
-    if N - 1 -l > table.hering_schenck_bound:
-        Msupp, Md, Mc, Mker, Mim = C.bidegree_tables(dual=not dual)
+    if N - 1 - l > table.hering_schenck_bound:
+        Msupp, Md, Mc, Mker, Mim = C.bidegree_tables(flip=not dual)
+        Cohom = Mker
     else:
-        Msupp, Md, Mc = C.bidegree_tables(short=True, dual=not dual)
-        Mker = Mzero
+        Msupp, Md, Mc = C.bidegree_tables(short=True, flip=not dual)
+        Cohom = Mzero
 
-    return format_table(Mker, Md, Supp, **kwds)
+    return format_matrices(Cohom, Md, Supp, **kwds)
 
 
 def format_table_c_coimage(table, l, **kwds):
     C = table.c_computer(l)
     Msupp, Md, Mc, Mker, Mim = C.bidegree_tables()
 
-    return format_table(Mc - (Md - Mker), Md, Msupp, **kwds)
+    return format_matrices(Mc - (Md - Mker), Md, Msupp, **kwds)
 
 
-def format_table(M, Mnontriv, Msupp, format, **kwds):
+def format_matrices(M, Mnontriv, Msupp, format, checksum=None, **kwds):
+    if checksum is not None:
+        sum = ZZ()
+        for i in range(Msupp.nrows()):
+            for j in range(Msupp.ncols()):
+                if Msupp[i,j]:
+                    sum += M[i,j]
+        if sum != checksum:
+            raise AssertionError("sum ({}) does not equal checksum ({})".format(sum, checksum))
+
     if format == "tikz":
         return tikz_table(M, Mnontriv, Msupp, **kwds)
     elif format == "html":
@@ -51,6 +115,9 @@ def html_table(M, Mnontriv, Msupp):
     supp = [(x,y)
         for y in range(Msupp.nrows()) for x in range(Msupp.ncols())
         if Msupp[y,x]]
+
+    if not supp:
+        return ""
 
     minx = min(bideg[0] for bideg in supp)
     maxx = max(bideg[0] for bideg in supp)
@@ -81,7 +148,7 @@ def html_table(M, Mnontriv, Msupp):
         s += '<th class="x">{}</th>'.format(x)
     s += '</tr>\n'
 
-    s += '</table>\n'
+    s += '</table>'
 
     return s
 

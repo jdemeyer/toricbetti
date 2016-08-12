@@ -15,29 +15,35 @@ def genf_points_multiples(pts, N):
             G[i] += Z**i
     return tuple(G)
 
+
 def genf_points(pts, t=[1]):
     t = tuple(t)
     G = genf_points_multiples(pts, sum(t))
     return formula_partition_tuple(G, t)
 
+
 def genf_polygon(P, t=[1]):
     return genf_points(P.integral_points(), t)
+
 
 def genf_polygon_interior(P, t=[1]):
     from .polygon import interior_points
     return genf_points(interior_points(P), t)
+
 
 def genf_subsets(pts, k):
     X, Y = ZZ_X_Y.gens()
     T = ZZ_X_Y_T.gen().add_bigoh(k + 1)
     return prod(1 + X**pt[0] * Y**pt[1] * T for pt in pts)[k]
 
-def genf_koszul(P, Q, p):
+
+def genf_koszul_dual(P, Q, p):
     if p < 0:
         return ZZ_X_Y()
     f1 = genf_polygon(P, [1]*p) // factorial(p)
     f2 = genf_polygon_interior(Q)
     return f1 * f2
+
 
 def genf_koszul_points(P, Q, p):
     if p < 0:
@@ -46,11 +52,25 @@ def genf_koszul_points(P, Q, p):
     f2 = genf_points(Q)
     return f1 * f2
 
+
+def genf_diagonal_difference(Delta, l):
+    f = ZZ_X_Y()
+    for j in range(l+2):
+        j = ZZ(j)
+        t = genf_koszul_points(Delta.integral_points(), (j*Delta).integral_points(), l+1-j)
+        if j % 2:
+            f -= t
+        else:
+            f += t
+    return f
+
+
 def formula_partition(t):
     t = tuple(t)
     R = PolynomialRing(ZZ, ["f"+str(i+1) for i in range(sum(t))])
     G = (R(1),) + R.gens()
     return formula_partition_tuple(G, t)
+
 
 @cached_function
 def formula_partition_tuple(G, t):

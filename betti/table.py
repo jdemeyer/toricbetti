@@ -325,7 +325,7 @@ class KoszulRankComputer(object):
     def im(self):
         return self.ker_im()[1]
 
-    def bidegree_tables(self, short=False, dual=False):
+    def bidegree_tables(self, short=False, flip=False):
         """
         Return a 5-tuple of matrices representing, for each bidegree:
 
@@ -338,7 +338,7 @@ class KoszulRankComputer(object):
         If ``short=True``, return only a 3-tuple with the first 3
         entries from the above list.
 
-        If ``dual=True``, return the tables for the dual.
+        If ``flip=True``, return the tables for the dual.
         """
 
         S = diagonal_matrix([self.pq, self.pq, 1])
@@ -346,7 +346,7 @@ class KoszulRankComputer(object):
         AUT = [S * M * Si for M in self.Delta_symmetry]
 
         pqDelta = self.pq * self.Delta
-        if dual:
+        if flip:
             dx, dy = sum(self.Delta.integral_points())
             xmax = dx
             ymax = dy
@@ -359,7 +359,7 @@ class KoszulRankComputer(object):
 
         for bideg in self.tensor_points(pqDelta):
             x, y = bideg
-            if dual:
+            if flip:
                 x = dx - x
                 y = dy - y
                 if x < 0 or y < 0:
@@ -379,7 +379,7 @@ class KoszulRankComputer(object):
             v = vector([bideg[0], bideg[1], 1])
             for g in AUT:
                 x, y, _ = g * v
-                if dual:
+                if flip:
                     x = dx - x
                     y = dy - y
                     if x < 0 or y < 0:
